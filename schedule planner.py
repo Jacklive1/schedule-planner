@@ -17,6 +17,26 @@ ws = wb.active
 header = [cell.value for cell in ws[1]]
 col_index = header.index("完成次数") + 1  # openpyxl 列从1开始
 
+# 完美达成次数：定位在 A列="完美达成次数" 那一行
+def get_perfect_count_cell():
+    for row in range(1, ws.max_row + 1):
+        if str(ws.cell(row=row, column=5).value).strip() == "完美达成次数":
+            return ws.cell(row=row, column=col_index)
+    raise ValueError("Excel 中未找到 '完美达成次数' 行，请确认位置在第1列")
+
+# 获取完美达成次数
+def get_perfect_count():
+    cell = get_perfect_count_cell()
+    return cell.value or 0
+
+# 修改完美达成次数
+def update_perfect_count(delta):
+    cell = get_perfect_count_cell()
+    old_val = cell.value or 0
+    cell.value = max(0, int(old_val) + delta)
+    wb.save(file_path)
+    update_ui()
+
 # 判断当前在哪一行
 def get_current_active_row(df):
     now = datetime.now().time()
@@ -33,16 +53,6 @@ def get_current_active_row(df):
                 continue
     return -1
 
-# 完美达成次数
-def get_perfect_count():
-    perfect = 0
-    min=999
-    for i in range(len(df)):
-        count = df.at[i, '完成次数']
-        if count <= min:
-            min = count
-    perfect = min
-    return perfect
 # 更新完成次数
 def update_count(row_idx, delta):
     excel_row = row_idx + 2  # Excel从第2行是数据
@@ -61,7 +71,7 @@ def update_ui():
 
     # 表头
     tk.Label(frame, text="时间", width=15, bg="lightgray").grid(row=0, column=0)
-    tk.Label(frame, text="事件", width=30, bg="lightgray").grid(row=0, column=1)
+    tk.Label(frame, text="事件", width=32, bg="lightgray").grid(row=0, column=1)
     tk.Label(frame, text="完成次数", width=10, bg="lightgray").grid(row=0, column=2)
 
     current_row = get_current_active_row(df)
@@ -70,7 +80,7 @@ def update_ui():
         bg_color = "red" if i == current_row else None
 
         tk.Label(frame, text=row['时间'], width=15, bg=bg_color).grid(row=i + 1, column=0)
-        tk.Label(frame, text=row['事件'], width=30, anchor="w", bg=bg_color).grid(row=i + 1, column=1)
+        tk.Label(frame, text=row['事件'], width=32, anchor="w", bg=bg_color).grid(row=i + 1, column=1)
 
         count_var = tk.StringVar(value=str(row['完成次数']))
         tk.Label(frame, textvariable=count_var, width=10, bg=bg_color).grid(row=i + 1, column=2)
@@ -78,10 +88,15 @@ def update_ui():
         tk.Button(frame, text="+1", command=lambda i=i: update_count(i, 1)).grid(row=i + 1, column=3)
         tk.Button(frame, text="-1", command=lambda i=i: update_count(i, -1)).grid(row=i + 1, column=4)
 
-    # 完美达成统计
+    # 显示并控制完美达成次数
     perfect_count = get_perfect_count()
-    tk.Label(frame, text="完美达成次数", fg="red", bg="yellow", width=20).grid(row=len(df) + 1, column=0, columnspan=2)
-    tk.Label(frame, text=str(perfect_count), fg="red", bg="yellow", width=10).grid(row=len(df) + 1, column=2)
+    row = len(df) + 2
+    tk.Label(frame, text="完美达成次数", width=32, bg="lightblue").grid(row=row, column=1)
+    perfect_var = tk.StringVar(value=str(perfect_count))
+    tk.Label(frame, textvariable=perfect_var, width=10, bg="lightblue").grid(row=row, column=2)
+
+    tk.Button(frame, text="+1", command=lambda: update_perfect_count(1)).grid(row=row, column=3)
+    tk.Button(frame, text="-1", command=lambda: update_perfect_count(-1)).grid(row=row, column=4)
 
 # 初始化窗口
 root = tk.Tk()
